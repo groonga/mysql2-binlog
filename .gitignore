@@ -1,0 +1,4 @@
+/ext/mysql2-replication/*.o
+/ext/mysql2-replication/*.so
+/ext/mysql2-replication/Makefile
+/pkg/
