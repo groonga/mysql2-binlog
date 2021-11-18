@@ -1,0 +1,72 @@
+#!/usr/bin/env ruby
+
+require "optparse"
+require "ostruct"
+
+require "mysql2-replication"
+
+options = OpenStruct.new
+options.user = nil
+options.password = nil
+options.host = nil
+options.port = nil
+options.socket = nil
+options.file_name = nil
+options.start_position = nil
+
+parser = OptionParser.new
+parser.version = Mysql2Replication::VERSION
+parser.on("--user=USER",
+          "User to be connected") do |user|
+  options.user = user
+end
+parser.on("--password=PASSWORD",
+          "Password for the user") do |password|
+  options.password = password
+end
+parser.on("--host=HOST",
+          "Host to be connected") do |host|
+  options.host = host
+end
+parser.on("--port=PORT", Integer,
+          "Port to be connected") do |port|
+  options.port = port
+end
+parser.on("--socket=SOCKET",
+          "Socket to be connected") do |socket|
+  options.socket = socket
+end
+parser.on("--file-name=NAME",
+          "File name to be read") do |file_name|
+  options.file_name = file_name
+end
+parser.on("--start_position=POSITION",
+          "Start position to be read") do |position|
+  options.start_position = start_position
+end
+
+parser.parse!
+
+client = Mysql2::Client.new(username: options.user,
+                            password: options.password,
+                            host: options.host,
+                            port: options.port,
+                            socket: options.socket)
+if options.file_name.nil? and options.start_position.nil?
+  master_status = client.query("SHOW MASTER STATUS").first
+  options.file_name = master_status["File"]
+  options.start_position = master_status["Position"]
+end
+
+replication_client = Mysql2Replication::Client.new(client)
+if options.file_name
+  replication_client.file_name = options.file_name
+end
+if options.start_position
+  replication_client.start_position = options.start_position
+end
+replication_client.open do
+  replication_client.each do |event|
+    pp event
+  end
+end
