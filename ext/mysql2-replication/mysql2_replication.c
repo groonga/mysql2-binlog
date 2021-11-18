@@ -798,11 +798,7 @@ Init_mysql2_replication(void)
   rb_define_attr(rb_cMysql2ReplicationTableMapEvent, "table_id", true, false);
   rb_define_attr(rb_cMysql2ReplicationTableMapEvent, "database", true, false);
   rb_define_attr(rb_cMysql2ReplicationTableMapEvent, "table", true, false);
-  rb_define_attr(rb_cMysql2ReplicationTableMapEvent, "n_columns", true, false);
-  rb_define_attr(rb_cMysql2ReplicationTableMapEvent,
-                 "column_types", true, false);
-  rb_define_attr(rb_cMysql2ReplicationTableMapEvent,
-                 "metadata", true, false);
+  rb_define_attr(rb_cMysql2ReplicationTableMapEvent, "columns", true, false);
 
   VALUE rb_cMysql2ReplicationClient =
     rb_define_class_under(rb_mMysql2Replication,
