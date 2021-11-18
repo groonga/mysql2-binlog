@@ -4,6 +4,7 @@
 
 /* libmariadb */
 #include <mysql.h>
+#include <mariadb_com.h>
 #include <mariadb_rpl.h>
 
 /* mysql2 */
@@ -20,6 +21,199 @@ static VALUE rb_cMysql2ReplicationTableMapEvent;
 static VALUE rb_cMysql2ReplicationWriteRowsEvent;
 static VALUE rb_cMysql2ReplicationUpdateRowsEvent;
 static VALUE rb_cMysql2ReplicationDeleteRowsEvent;
+
+static ID
+rbm2_column_type_to_id(enum enum_field_types column_type)
+{
+  switch (column_type) {
+  case MYSQL_TYPE_DECIMAL:
+    return rb_intern("decimal");
+  case MYSQL_TYPE_TINY:
+    return rb_intern("tiny");
+  case MYSQL_TYPE_SHORT:
+    return rb_intern("short");
+  case MYSQL_TYPE_LONG:
+    return rb_intern("long");
+  case MYSQL_TYPE_FLOAT:
+    return rb_intern("float");
+  case MYSQL_TYPE_DOUBLE:
+    return rb_intern("double");
+  case MYSQL_TYPE_NULL:
+    return rb_intern("null");
+  case MYSQL_TYPE_TIMESTAMP:
+    return rb_intern("timestamp");
+  case MYSQL_TYPE_LONGLONG:
+    return rb_intern("longlong");
+  case MYSQL_TYPE_INT24:
+    return rb_intern("int24");
+  case MYSQL_TYPE_DATE:
+    return rb_intern("date");
+  case MYSQL_TYPE_TIME:
+    return rb_intern("time");
+  case MYSQL_TYPE_DATETIME:
+    return rb_intern("datetime");
+  case MYSQL_TYPE_YEAR:
+    return rb_intern("year");
+  case MYSQL_TYPE_NEWDATE:
+    return rb_intern("newdate");
+  case MYSQL_TYPE_VARCHAR:
+    return rb_intern("varchar");
+  case MYSQL_TYPE_BIT:
+    return rb_intern("bit");
+  case MYSQL_TYPE_TIMESTAMP2:
+    return rb_intern("timestamp2");
+  case MYSQL_TYPE_DATETIME2:
+    return rb_intern("datetime2");
+  case MYSQL_TYPE_TIME2:
+    return rb_intern("time2");
+  case MYSQL_TYPE_JSON:
+    return rb_intern("json");
+  case MYSQL_TYPE_NEWDECIMAL:
+    return rb_intern("newdecimal");
+  case MYSQL_TYPE_ENUM:
+    return rb_intern("enum");
+  case MYSQL_TYPE_SET:
+    return rb_intern("set");
+  case MYSQL_TYPE_TINY_BLOB:
+    return rb_intern("tiny_blob");
+  case MYSQL_TYPE_MEDIUM_BLOB:
+    return rb_intern("medium_blob");
+  case MYSQL_TYPE_LONG_BLOB:
+    return rb_intern("long_blob");
+  case MYSQL_TYPE_BLOB:
+    return rb_intern("blob");
+  case MYSQL_TYPE_VAR_STRING:
+    return rb_intern("var_string");
+  case MYSQL_TYPE_STRING:
+    return rb_intern("string");
+  case MYSQL_TYPE_GEOMETRY:
+    return rb_intern("geometry");
+  default:
+    return rb_intern("unknown");
+  }
+}
+
+static VALUE
+rbm2_column_type_to_symbol(enum enum_field_types column_type)
+{
+  return rb_id2sym(rbm2_column_type_to_id(column_type));
+}
+
+static void
+rbm2_metadata_parse(enum enum_field_types *column_type,
+                    const uint8_t **metadata,
+                    VALUE rb_column)
+{
+  switch (*column_type) {
+  case MYSQL_TYPE_DECIMAL:
+  case MYSQL_TYPE_TINY:
+  case MYSQL_TYPE_SHORT:
+  case MYSQL_TYPE_LONG:
+    break;
+  case MYSQL_TYPE_FLOAT:
+  case MYSQL_TYPE_DOUBLE:
+    rb_hash_aset(rb_column,
+                 rb_id2str(rb_intern("size")),
+                 UINT2NUM((*metadata)[0]));
+    (*metadata) += 1;
+    break;
+  case MYSQL_TYPE_NULL:
+  case MYSQL_TYPE_TIMESTAMP:
+  case MYSQL_TYPE_LONGLONG:
+  case MYSQL_TYPE_INT24:
+  case MYSQL_TYPE_DATE:
+  case MYSQL_TYPE_TIME:
+  case MYSQL_TYPE_DATETIME:
+  case MYSQL_TYPE_YEAR:
+  case MYSQL_TYPE_NEWDATE:
+    break;
+  case MYSQL_TYPE_VARCHAR:
+    rb_hash_aset(rb_column,
+                 rb_id2str(rb_intern("max_length")),
+                 UINT2NUM(((const uint16_t *)(*metadata))[0]));
+    (*metadata) += 2;
+    break;
+  case MYSQL_TYPE_BIT:
+    {
+      uint8_t bits = (*metadata)[0];
+      uint8_t bytes = (*metadata)[1];
+      rb_hash_aset(rb_column,
+                   rb_id2str(rb_intern("bits")),
+                   UINT2NUM((bytes * 8) + bits));
+      (*metadata) += 2;
+    }
+    break;
+  case MYSQL_TYPE_TIMESTAMP2:
+  case MYSQL_TYPE_DATETIME2:
+  case MYSQL_TYPE_TIME2:
+    rb_hash_aset(rb_column,
+                 rb_id2str(rb_intern("decimals")),
+                 UINT2NUM((*metadata)[0]));
+    (*metadata) += 1;
+    break;
+  case MYSQL_TYPE_JSON:
+    rb_hash_aset(rb_column,
+                 rb_id2str(rb_intern("length_size")),
+                 UINT2NUM((*metadata)[0]));
+    (*metadata) += 1;
+    break;
+  case MYSQL_TYPE_NEWDECIMAL:
+    rb_hash_aset(rb_column,
+                 rb_id2str(rb_intern("precision")),
+                 UINT2NUM((*metadata)[0]));
+    rb_hash_aset(rb_column,
+                 rb_id2str(rb_intern("decimals")),
+                 UINT2NUM((*metadata)[1]));
+    (*metadata) += 2;
+    break;
+  case MYSQL_TYPE_ENUM:
+  case MYSQL_TYPE_SET:
+    rb_hash_aset(rb_column,
+                 rb_id2str(rb_intern("size")),
+                 UINT2NUM((*metadata)[1]));
+    (*metadata) += 2;
+    break;
+  case MYSQL_TYPE_TINY_BLOB:
+  case MYSQL_TYPE_MEDIUM_BLOB:
+  case MYSQL_TYPE_LONG_BLOB:
+    break;
+  case MYSQL_TYPE_BLOB:
+    rb_hash_aset(rb_column,
+                 rb_id2str(rb_intern("length_size")),
+                 UINT2NUM((*metadata)[0]));
+    (*metadata) += 1;
+    break;
+  case MYSQL_TYPE_VAR_STRING:
+  case MYSQL_TYPE_STRING:
+    {
+      *column_type = (*metadata)[0];
+      switch (*column_type) {
+      case MYSQL_TYPE_ENUM:
+      case MYSQL_TYPE_SET:
+        rb_hash_aset(rb_column,
+                     rb_id2str(rb_intern("size")),
+                     UINT2NUM((*metadata)[1]));
+        break;
+      default:
+        rb_hash_aset(rb_column,
+                     rb_id2str(rb_intern("max_length")),
+                     UINT2NUM(((((*metadata)[0] >> 4) & 0x300) ^ 0x300) +
+                              (*metadata)[1]));
+        break;
+      }
+      (*metadata) += 2;
+    }
+    break;
+  case MYSQL_TYPE_GEOMETRY:
+    rb_hash_aset(rb_column,
+                 rb_id2str(rb_intern("length_size")),
+                 UINT2NUM((*metadata)[0]));
+    (*metadata) += 1;
+    break;
+  default:
+    break;
+  }
+}
 
 static VALUE
 rbm2_replication_event_new(MARIADB_RPL_EVENT *event)
@@ -58,11 +252,25 @@ rbm2_replication_event_new(MARIADB_RPL_EVENT *event)
                                                   e->database.length));
       rb_iv_set(rb_event, "@table", rb_str_new(e->table.str,
                                                e->table.length));
-      rb_iv_set(rb_event, "@n_columns", UINT2NUM(e->column_count));
-      rb_iv_set(rb_event, "@column_types", rb_str_new(e->column_types.str,
-                                                      e->column_types.length));
-      rb_iv_set(rb_event, "@metadata", rb_str_new(e->metadata.str,
-                                                  e->metadata.length));
+      {
+        VALUE rb_columns = rb_ary_new_capa(e->column_count);
+        const uint8_t *column_types = (const uint8_t *)(e->column_types.str);
+        const uint8_t *metadata = (const uint8_t *)(e->metadata.str);
+        uint32_t i;
+        for (i = 0; i < e->column_count; i++) {
+          uint8_t column_type = column_types[i];
+          enum enum_field_types real_column_type = column_type;
+          VALUE rb_column = rb_hash_new();
+          rbm2_metadata_parse(&real_column_type,
+                              &metadata,
+                              rb_column);
+          rb_hash_aset(rb_column,
+                       rb_id2str(rb_intern("type")),
+                       rbm2_column_type_to_symbol(real_column_type));
+          rb_ary_push(rb_columns, rb_column);
+        }
+        rb_iv_set(rb_event, "@columns", rb_columns);
+      }
     }
     break;
   case WRITE_ROWS_EVENT_V1:
