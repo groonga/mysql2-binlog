@@ -216,7 +216,8 @@ rbm2_metadata_parse(enum enum_field_types *column_type,
 }
 
 static VALUE
-rbm2_replication_event_new(MARIADB_RPL_EVENT *event)
+rbm2_replication_event_new(MARIADB_RPL *rpl,
+                           MARIADB_RPL_EVENT *event)
 {
   VALUE klass;
   VALUE rb_event;
@@ -227,7 +228,14 @@ rbm2_replication_event_new(MARIADB_RPL_EVENT *event)
     {
       struct st_mariadb_rpl_rotate_event *e = &(event->event.rotate);
       rb_iv_set(rb_event, "@position", ULL2NUM(e->position));
-      rb_iv_set(rb_event, "@file_name", rb_str_new_cstr(e->filename.str));
+      size_t filename_size =
+        rpl->buffer_size -
+        EVENT_HEADER_OFS -
+        sizeof(uint64_t) - /* position */
+        sizeof(uint32_t); /* checksum */
+      rb_iv_set(rb_event,
+                "@file_name",
+                rb_str_new(e->filename.str, filename_size));
     }
     break;
   case FORMAT_DESCRIPTION_EVENT:
@@ -700,7 +708,7 @@ rbm2_replication_client_fetch(VALUE self)
       }
       continue;
     }
-    return rbm2_replication_event_new(event);
+    return rbm2_replication_event_new(wrapper->rpl, event);
   } while (true);
 }
 
@@ -725,7 +733,7 @@ rbm2_replication_client_each(VALUE self)
       }
       continue;
     }
-    rb_yield(rbm2_replication_event_new(event));
+    rb_yield(rbm2_replication_event_new(wrapper->rpl, event));
   } while (true);
   return RUBY_Qnil;
 }
