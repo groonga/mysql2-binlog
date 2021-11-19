@@ -228,11 +228,16 @@ rbm2_replication_event_new(MARIADB_RPL *rpl,
     {
       struct st_mariadb_rpl_rotate_event *e = &(event->event.rotate);
       rb_iv_set(rb_event, "@position", ULL2NUM(e->position));
-      size_t filename_size =
-        rpl->buffer_size -
-        EVENT_HEADER_OFS -
-        sizeof(uint64_t) - /* position */
-        sizeof(uint32_t); /* checksum */
+      size_t filename_size;
+      if (event->timestamp == 0) {
+        /* Fake ROTATE_EVENT: https://mariadb.com/kb/en/fake-rotate_event/ */
+        filename_size = rpl->buffer_size -
+          EVENT_HEADER_OFS -
+          sizeof(uint64_t) - /* position */
+          sizeof(uint32_t); /* checksum */
+      } else {
+        filename_size = e->filename.length;
+      }
       rb_iv_set(rb_event,
                 "@file_name",
                 rb_str_new(e->filename.str, filename_size));
