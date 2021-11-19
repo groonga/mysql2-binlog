@@ -40,9 +40,9 @@ parser.on("--file-name=NAME",
           "File name to be read") do |file_name|
   options.file_name = file_name
 end
-parser.on("--start_position=POSITION",
+parser.on("--start-position=POSITION", Integer,
           "Start position to be read") do |position|
-  options.start_position = start_position
+  options.start_position = position
 end
 
 parser.parse!
@@ -62,9 +62,7 @@ replication_client = Mysql2Replication::Client.new(client)
 if options.file_name
   replication_client.file_name = options.file_name
 end
-if options.start_position
-  replication_client.start_position = options.start_position
-end
+replication_client.start_position = options.start_position || 4
 replication_client.open do
   replication_client.each do |event|
     pp event
