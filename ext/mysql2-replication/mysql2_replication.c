@@ -55,6 +55,13 @@ rbm2_read_uint16(const uint8_t *data)
   return *((const uint16_t *)data);
 }
 
+static inline uint16_t
+rbm2_read_uint16_bigendian(const uint8_t *data)
+{
+  return (((uint32_t)(data[0]) << 8) +
+          ((uint32_t)(data[1])));
+}
+
 static inline int32_t
 rbm2_read_int24(const uint8_t *data)
 {
@@ -74,6 +81,14 @@ rbm2_read_uint24(const uint8_t *data)
   return (((uint32_t)(data[0])) +
           ((uint32_t)(data[1]) << 8) +
           ((uint32_t)(data[2]) << 16));
+}
+
+static inline uint32_t
+rbm2_read_uint24_bigendian(const uint8_t *data)
+{
+  return (((uint32_t)(data[0]) << 16) +
+          ((uint32_t)(data[1]) << 8) +
+          ((uint32_t)(data[2])));
 }
 
 static inline int32_t
@@ -227,7 +242,7 @@ rbm2_metadata_parse(enum enum_field_types *column_type,
   case MYSQL_TYPE_VARCHAR:
     rb_hash_aset(rb_column,
                  rb_id2sym(rb_intern("max_length")),
-                 UINT2NUM(((const uint16_t *)(*metadata))[0]));
+                 UINT2NUM(rbm2_read_uint16(*metadata)));
     (*metadata) += 2;
     break;
   case MYSQL_TYPE_BIT:
@@ -549,11 +564,11 @@ rbm2_column_parse(VALUE rb_column, const uint8_t **row_data)
         (*row_data) += 1;
         break;
       case 2:
-        fractional_seconds = rbm2_read_uint16(*row_data) * 100;
+        fractional_seconds = rbm2_read_uint16_bigendian(*row_data) * 100;
         (*row_data) += 2;
         break;
       case 3:
-        fractional_seconds = rbm2_read_uint24(*row_data);
+        fractional_seconds = rbm2_read_uint24_bigendian(*row_data);
         (*row_data) += 3;
         break;
       default :
@@ -585,11 +600,11 @@ rbm2_column_parse(VALUE rb_column, const uint8_t **row_data)
         (*row_data) += 1;
         break;
       case 2:
-        fractional_seconds = rbm2_read_uint16(*row_data) * 100;
+        fractional_seconds = rbm2_read_uint16_bigendian(*row_data) * 100;
         (*row_data) += 2;
         break;
       case 3:
-        fractional_seconds = rbm2_read_uint24(*row_data);
+        fractional_seconds = rbm2_read_uint24_bigendian(*row_data);
         (*row_data) += 3;
         break;
       default :
