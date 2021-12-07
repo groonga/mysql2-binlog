@@ -283,6 +283,7 @@ rbm2_metadata_parse(enum enum_field_types *column_type,
   case MYSQL_TYPE_VAR_STRING:
   case MYSQL_TYPE_STRING:
     {
+      /* See also Field_string::do_save_field_metadata() */
       *column_type = (*metadata)[0];
       switch (*column_type) {
       case MYSQL_TYPE_ENUM:
@@ -294,7 +295,7 @@ rbm2_metadata_parse(enum enum_field_types *column_type,
       default:
         rb_hash_aset(rb_column,
                      rb_id2sym(rb_intern("max_length")),
-                     UINT2NUM(((((*metadata)[0] >> 4) & 0x300) ^ 0x300) +
+                     UINT2NUM((((((*metadata)[0] >> 4) & 0x03) ^ 0x03) << 8) +
                               (*metadata)[1]));
         break;
       }
