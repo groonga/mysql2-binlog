@@ -24,6 +24,13 @@ static VALUE rb_cMysql2ReplicationWriteRowsEvent;
 static VALUE rb_cMysql2ReplicationUpdateRowsEvent;
 static VALUE rb_cMysql2ReplicationDeleteRowsEvent;
 
+static VALUE
+rbm2_replication_rows_event_statement_end_p(VALUE self)
+{
+  return (NUM2USHORT(rb_iv_get(self, "@rows_flags")) & FL_STMT_END) ?
+    RUBY_Qtrue : RUBY_Qfalse;
+}
+
 static inline int8_t
 rbm2_read_int8(const uint8_t *data)
 {
@@ -1143,7 +1150,7 @@ rbm2_replication_event_new(rbm2_replication_client_wrapper *wrapper,
         (const uint8_t *)(e->column_update_bitmap);
       rb_iv_set(rb_event, "@table_id", rb_table_id);
       rb_iv_set(rb_event, "@table_map", rb_table_map);
-      rb_iv_set(rb_event, "@flags", USHORT2NUM(e->flags));
+      rb_iv_set(rb_event, "@rows_flags", USHORT2NUM(e->flags));
       VALUE rb_rows = rb_ary_new();
       VALUE rb_updated_rows = RUBY_Qnil;
       if (klass == rb_cMysql2ReplicationUpdateRowsEvent) {
@@ -1286,8 +1293,12 @@ Init_mysql2_replication(void)
                           "RowsEvent",
                           rb_cMysql2ReplicationEvent);
   rb_define_attr(rb_cMysql2ReplicationRowsEvent, "table_id", true, false);
-  rb_define_attr(rb_cMysql2ReplicationRowsEvent, "flags", true, false);
+  rb_define_attr(rb_cMysql2ReplicationRowsEvent, "rows_flags", true, false);
   rb_define_attr(rb_cMysql2ReplicationRowsEvent, "rows", true, false);
+  rb_define_method(rb_cMysql2ReplicationRowsEvent,
+                   "statement_end?",
+                   rbm2_replication_rows_event_statement_end_p,
+                   0);
 
   rb_cMysql2ReplicationWriteRowsEvent =
     rb_define_class_under(rb_mMysql2Replication,
