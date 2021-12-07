@@ -1293,6 +1293,7 @@ Init_mysql2_replication(void)
                           "RowsEvent",
                           rb_cMysql2ReplicationEvent);
   rb_define_attr(rb_cMysql2ReplicationRowsEvent, "table_id", true, false);
+  rb_define_attr(rb_cMysql2ReplicationRowsEvent, "table_map", true, false);
   rb_define_attr(rb_cMysql2ReplicationRowsEvent, "rows_flags", true, false);
   rb_define_attr(rb_cMysql2ReplicationRowsEvent, "rows", true, false);
   rb_define_method(rb_cMysql2ReplicationRowsEvent,
