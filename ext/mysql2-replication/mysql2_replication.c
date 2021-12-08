@@ -106,10 +106,10 @@ rbm2_read_uint32(const uint8_t *data)
 static inline uint32_t
 rbm2_read_uint32_bigendian(const uint8_t *data)
 {
-  return (((uint64_t)(data[0]) << 24) +
-          ((uint64_t)(data[1]) << 16) +
-          ((uint64_t)(data[2]) << 8) +
-          ((uint64_t)(data[3])));
+  return (((uint32_t)(data[0]) << 24) +
+          ((uint32_t)(data[1]) << 16) +
+          ((uint32_t)(data[2]) << 8) +
+          ((uint32_t)(data[3])));
 }
 
 static inline uint64_t
@@ -274,7 +274,7 @@ rbm2_metadata_parse(enum enum_field_types *column_type,
                  rb_id2sym(rb_intern("precision")),
                  UINT2NUM((*metadata)[0]));
     rb_hash_aset(rb_column,
-                 rb_id2sym(rb_intern("decimals")),
+                 rb_id2sym(rb_intern("scale")),
                  UINT2NUM((*metadata)[1]));
     (*metadata) += 2;
     break;
@@ -645,9 +645,33 @@ rbm2_column_parse(VALUE rb_column, const uint8_t **row_data)
     rb_value = rbm2_column_parse_blob(rb_column, row_data);
     break;
   case MYSQL_TYPE_NEWDECIMAL:
-    rb_raise(rb_eNotImpError,
-             "newdecimal type isn't implemented yet: %+" PRIsVALUE,
-             rb_type);
+    {
+      /* TODO: See also bin2decimal(). */
+      const uint32_t digits_per_integer = 9;
+      const int32_t compressed_bytes[] = {0, 1, 1, 2, 3, 3, 4, 4, 4};
+      uint32_t precision =
+        NUM2UINT(rb_hash_aref(rb_column,
+                              rb_id2sym(rb_intern("precision"))));
+      uint32_t scale =
+        NUM2UINT(rb_hash_aref(rb_column,
+                              rb_id2sym(rb_intern("scale"))));
+      uint32_t integral = precision - scale;
+      uint32_t uncompressed_integral = integral / digits_per_integer;
+      uint32_t uncompressed_fractional = scale / digits_per_integer;
+      uint32_t compressed_integral =
+        integral - (uncompressed_integral * digits_per_integer);
+      uint32_t compressed_fractional =
+        scale - (uncompressed_fractional * digits_per_integer);
+
+      (*row_data) += compressed_bytes[compressed_integral];
+      if (uncompressed_integral > 1) {
+        (*row_data) += (4 * (uncompressed_integral - 1));
+      }
+      if (uncompressed_fractional > 1) {
+        (*row_data) += (4 * (uncompressed_fractional - 1));
+      }
+      (*row_data) += compressed_bytes[compressed_fractional];
+    }
     break;
   case MYSQL_TYPE_ENUM:
   case MYSQL_TYPE_SET:
