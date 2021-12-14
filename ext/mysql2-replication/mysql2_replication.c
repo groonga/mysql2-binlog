@@ -721,6 +721,7 @@ typedef struct
   MARIADB_RPL_EVENT *rpl_event;
   VALUE rb_client;
   VALUE rb_table_maps;
+  bool force_disable_use_checksum;
 } rbm2_replication_client_wrapper;
 
 static void
@@ -862,6 +863,11 @@ rbm2_replication_client_initialize(int argc, VALUE *argv, VALUE self)
     ID id_query;
     CONST_ID(id_query, "query");
     rb_funcall(rb_client, id_query, 1, rb_query);
+  }
+  if (rb_equal(rb_str_new_cstr("NONE"), rb_checksum)) {
+    wrapper->force_disable_use_checksum = true;
+  } else {
+    wrapper->force_disable_use_checksum = false;
   }
 
   return RUBY_Qnil;
@@ -1122,6 +1128,9 @@ rbm2_replication_event_new(rbm2_replication_client_wrapper *wrapper,
       rb_iv_set(rb_event, "@server_version", rb_str_new_cstr(e->server_version));
       rb_iv_set(rb_event, "@timestamp", UINT2NUM(e->timestamp));
       rb_iv_set(rb_event, "@header_length", UINT2NUM(e->header_len));
+    }
+    if (wrapper->force_disable_use_checksum) {
+      wrapper->rpl->use_checksum = false;
     }
     break;
   case TABLE_MAP_EVENT:
