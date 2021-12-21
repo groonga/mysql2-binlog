@@ -25,6 +25,11 @@ jobs:
         with:
           ruby-version: ${{ matrix.ruby-version }}
           bundler-cache: true
+      - name: Build
+        run: |
+          cd ext/mysql2-replication
+          ruby extconf.rb
+          make -j$(nproc)
       # - name: Test
       #   run: |
       #     bundle exec ruby test/run.rb
