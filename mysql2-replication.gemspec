@@ -19,7 +19,7 @@ Gem::Specification.new do |spec|
   clean_white_space.call(entries[entries.index("Description") + 1])
   description = clean_white_space.call(entries[entries.index("Description") + 1])
   spec.summary, spec.description, = description.split(/\n\n+/, 3)
-  spec.license = "GPL-3.0+"
+  spec.license = "MIT"
   spec.files = [
     "README.md",
     "LICENSE.txt",
