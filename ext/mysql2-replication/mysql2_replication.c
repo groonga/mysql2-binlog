@@ -12,6 +12,12 @@
 /* mysql2 */
 #include <client.h>
 
+
+#ifndef RUBY_LL2NUM
+#  define RUBY_LL2NUM LL2NUM
+#endif
+
+
 void Init_mysql2_replication(void);
 
 static VALUE rb_cDate;
