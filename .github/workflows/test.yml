@@ -28,7 +28,7 @@ jobs:
       - name: Build
         run: |
           cd ext/mysql2-replication
-          ruby extconf.rb
+          bundle exec ruby extconf.rb
           make -j$(nproc)
       # - name: Test
       #   run: |
