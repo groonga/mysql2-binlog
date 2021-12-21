@@ -35,4 +35,6 @@ Gem::Specification.new do |spec|
   end
 
   spec.add_runtime_dependency("mysql2")
+  spec.add_runtime_dependency("native-package-installer")
+  spec.add_runtime_dependency("pkg-config")
 end
