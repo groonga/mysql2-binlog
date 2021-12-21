@@ -28,6 +28,8 @@ Gem::Specification.new do |spec|
     "#{spec.name}.gemspec",
   ]
   spec.files += Dir.glob("lib/**/*.rb")
+  spec.files += Dir.glob("ext/**/*.{c,rb}")
+  spec.extensions = ["ext/mysql2-replication/extconf.rb"]
   Dir.chdir("bin") do
     spec.executables = Dir.glob("*")
   end
