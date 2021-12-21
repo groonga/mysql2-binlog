@@ -1,5 +1,11 @@
 # News
 
+## 1.0.3 - 2021-12-21
+
+### Improvements
+
+  * Added support for Ruby < 3.0.
+
 ## 1.0.2 - 2021-12-21
 
 ### Fixes
