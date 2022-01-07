@@ -730,6 +730,7 @@ typedef struct
   VALUE rb_client;
   VALUE rb_table_maps;
   bool force_disable_use_checksum;
+  bool format_description_processed;
 } rbm2_replication_client_wrapper;
 
 static void
@@ -877,6 +878,7 @@ rbm2_replication_client_initialize(int argc, VALUE *argv, VALUE self)
   } else {
     wrapper->force_disable_use_checksum = false;
   }
+  wrapper->format_description_processed = false;
 
   return RUBY_Qnil;
 }
@@ -1111,15 +1113,17 @@ rbm2_replication_event_new(rbm2_replication_client_wrapper *wrapper,
     {
       struct st_mariadb_rpl_rotate_event *e = &(event->event.rotate);
       rb_iv_set(rb_event, "@position", ULL2NUM(e->position));
-      size_t filename_size;
+      size_t filename_size = e->filename.length;
       if (event->timestamp == 0) {
         /* Fake ROTATE_EVENT: https://mariadb.com/kb/en/fake-rotate_event/ */
-        filename_size = wrapper->rpl->buffer_size -
-          EVENT_HEADER_OFS -
-          sizeof(uint64_t) - /* position */
-          sizeof(uint32_t); /* checksum */
-      } else {
-        filename_size = e->filename.length;
+        if (!wrapper->format_description_processed) {
+          filename_size = wrapper->rpl->buffer_size -
+            EVENT_HEADER_OFS -
+            sizeof(uint64_t); /* position */
+          if (!wrapper->force_disable_use_checksum) {
+            filename_size -= sizeof(uint32_t); /* checksum */
+          }
+        }
       }
       rb_iv_set(rb_event,
                 "@file_name",
@@ -1140,6 +1144,7 @@ rbm2_replication_event_new(rbm2_replication_client_wrapper *wrapper,
     if (wrapper->force_disable_use_checksum) {
       wrapper->rpl->use_checksum = false;
     }
+    wrapper->format_description_processed = true;
     break;
   case TABLE_MAP_EVENT:
     klass = rb_cMysql2ReplicationTableMapEvent;
