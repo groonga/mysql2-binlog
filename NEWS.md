@@ -1,5 +1,11 @@
 # News
 
+## 1.0.4 - 2022-01-07
+
+### Fixes
+
+  * Fixed a `DATETIME` parse bug.
+
 ## 1.0.3 - 2021-12-21
 
 ### Improvements
