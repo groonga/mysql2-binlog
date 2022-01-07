@@ -505,12 +505,12 @@ rbm2_column_parse(VALUE rb_column, const uint8_t **row_data)
       rb_value = rb_funcall(rb_cTime,
                             rb_intern("utc"),
                             6,
-                            RB_UINT2NUM((raw_time / (10 * 10))),
-                            RB_UINT2NUM((raw_time % (10 * 10)) / (10 * 8)),
-                            RB_UINT2NUM((raw_time % (10 * 8)) / (10 * 6)),
-                            RB_UINT2NUM((raw_time % (10 * 6)) / (10 * 4)),
-                            RB_UINT2NUM((raw_time % (10 * 4)) / (10 * 2)),
-                            RB_UINT2NUM((raw_time % (10 * 2))));
+                            RB_UINT2NUM((raw_time / 10000000000)),
+                            RB_UINT2NUM((raw_time % 10000000000) / 100000000),
+                            RB_UINT2NUM((raw_time %   100000000) /   1000000),
+                            RB_UINT2NUM((raw_time %     1000000) /     10000),
+                            RB_UINT2NUM((raw_time %       10000) /       100),
+                            RB_UINT2NUM((raw_time %         100)));
       (*row_data) += 8;
     }
     break;
