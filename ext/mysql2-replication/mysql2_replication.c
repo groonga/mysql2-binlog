@@ -337,6 +337,37 @@ rbm2_metadata_parse(enum enum_field_types *column_type,
 }
 
 static inline VALUE
+rbm2_column_parse_variable_size_uint(VALUE rb_column,
+                                     const uint8_t **row_data)
+{
+  VALUE rb_size = rb_hash_aref(rb_column, rb_id2sym(rb_intern("size")));
+  uint32_t size = NUM2UINT(rb_size);
+  VALUE rb_value = RUBY_Qnil;
+  switch (size) {
+  case 1:
+    rb_value = USHORT2NUM(rbm2_read_uint8(*row_data));
+    break;
+  case 2:
+    rb_value = USHORT2NUM(rbm2_read_uint16(*row_data));
+    break;
+  case 3:
+    rb_value = UINT2NUM(rbm2_read_uint24(*row_data));
+    break;
+  case 4:
+    rb_value = UINT2NUM(rbm2_read_uint32(*row_data));
+    break;
+  default:
+    rb_raise(rb_eNotImpError,
+             "unsupported size for variable size uint: %u: %+" PRIsVALUE,
+             size,
+             rb_column);
+    break;
+  }
+  (*row_data) += size;
+  return rb_value;
+}
+
+static inline VALUE
 rbm2_column_parse_variable_length_string(VALUE rb_column,
                                          const uint8_t **row_data)
 {
@@ -683,9 +714,7 @@ rbm2_column_parse(VALUE rb_column, const uint8_t **row_data)
     break;
   case MYSQL_TYPE_ENUM:
   case MYSQL_TYPE_SET:
-    rb_raise(rb_eNotImpError,
-             "enum/set types aren't implemented yet: %+" PRIsVALUE,
-             rb_type);
+    rb_value = rbm2_column_parse_variable_size_uint(rb_column, row_data);
     break;
   case MYSQL_TYPE_TINY_BLOB:
   case MYSQL_TYPE_MEDIUM_BLOB:
