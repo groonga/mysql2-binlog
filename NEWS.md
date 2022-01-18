@@ -1,5 +1,23 @@
 # News
 
+## 1.0.5 - 2022-01-18
+
+### Improvements
+
+  * Added support for `ENUM`.
+
+  * Added support for `SET`.
+
+  * Added support for invalid `DATE` value.
+
+  * Added support for invalid `DATETIME` value.
+
+  * Added `Mysql2Replication::Error`.
+
+### Fixes
+
+  * Fixed a workaround for fake rotate event.
+
 ## 1.0.4 - 2022-01-07
 
 ### Fixes
