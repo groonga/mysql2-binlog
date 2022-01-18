@@ -509,12 +509,21 @@ rbm2_column_parse(VALUE rb_column, const uint8_t **row_data)
         M: 4bit
         D: 5bit
       */
-      rb_value = rb_funcall(rb_cDate,
-                            rb_intern("new"),
-                            3,
-                            RB_UINT2NUM((raw_date >> 9)),
-                            RB_UINT2NUM((raw_date >> 5) & ((1 << 4) - 1)),
-                            RB_UINT2NUM((raw_date & ((1 << 5) - 1))));
+      if (raw_date == 0) {
+        rb_value = rb_funcall(rb_cDate,
+                              rb_intern("new"),
+                              3,
+                              RB_UINT2NUM(0),
+                              RB_UINT2NUM(1),
+                              RB_UINT2NUM(1));
+      } else {
+        rb_value = rb_funcall(rb_cDate,
+                              rb_intern("new"),
+                              3,
+                              RB_UINT2NUM((raw_date >> 9)),
+                              RB_UINT2NUM((raw_date >> 5) & ((1 << 4) - 1)),
+                              RB_UINT2NUM((raw_date & ((1 << 5) - 1))));
+      }
       (*row_data) += 3;
     }
     break;
