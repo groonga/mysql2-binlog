@@ -22,7 +22,9 @@ void Init_mysql2_replication(void);
 
 static VALUE rb_cDate;
 
-static VALUE rb_cMysql2Error;
+static VALUE rb_eMysql2Error;
+
+static VALUE rb_eMysql2ReplicationError;
 
 static VALUE rb_cMysql2ReplicationEvent;
 static VALUE rb_cMysql2ReplicationRotateEvent;
@@ -877,7 +879,7 @@ rbm2_replication_client_raise(VALUE self)
                         rb_usascii_encoding());
   ID new_with_args;
   CONST_ID(new_with_args, "new_with_args");
-  VALUE rb_error = rb_funcall(rb_cMysql2Error,
+  VALUE rb_error = rb_funcall(rb_eMysql2Error,
                               new_with_args,
                               4,
                               rb_error_message,
@@ -1156,6 +1158,57 @@ rbm2_row_parse(const uint8_t **row_data,
   return rb_row;
 }
 
+typedef struct
+{
+  struct st_mariadb_rpl_rows_event *rows_event;
+  VALUE rb_klass;
+  VALUE rb_rows;
+  VALUE rb_updated_rows;
+  VALUE rb_table_map;
+} rbm2_replication_rows_event_parse_rows_data;
+
+static VALUE
+rbm2_replication_rows_event_parse_rows_body(VALUE user_data)
+{
+  rbm2_replication_rows_event_parse_rows_data *data =
+    (rbm2_replication_rows_event_parse_rows_data *)user_data;
+
+  const uint8_t *column_bitmap =
+    (const uint8_t *)(data->rows_event->column_bitmap);
+  const uint8_t *column_update_bitmap =
+    (const uint8_t *)(data->rows_event->column_update_bitmap);
+  const uint8_t *row_data = data->rows_event->row_data;
+  const uint8_t *row_data_end = row_data + data->rows_event->row_data_size;
+  VALUE rb_columns = rb_iv_get(data->rb_table_map, "@columns");
+  while (row_data < row_data_end) {
+    VALUE rb_row = rbm2_row_parse(&row_data,
+                                  data->rows_event->column_count,
+                                  column_bitmap,
+                                  rb_columns);
+    rb_ary_push(data->rb_rows, rb_row);
+    if (data->rb_klass == rb_cMysql2ReplicationUpdateRowsEvent) {
+      VALUE rb_updated_row = rbm2_row_parse(&row_data,
+                                            data->rows_event->column_count,
+                                            column_update_bitmap,
+                                            rb_columns);
+      rb_ary_push(data->rb_updated_rows, rb_updated_row);
+    }
+  }
+  return RUBY_Qnil;
+}
+
+static VALUE
+rbm2_replication_rows_event_parse_rows_rescue(VALUE user_data, VALUE error)
+{
+  rbm2_replication_rows_event_parse_rows_data *data =
+    (rbm2_replication_rows_event_parse_rows_data *)user_data;
+  rb_raise(rb_eMysql2ReplicationError,
+           "failed to parse rows: %+" PRIsVALUE ": %+" PRIsVALUE,
+           data->rb_table_map,
+           rb_funcall(error, rb_intern("message"), 0));
+  return RUBY_Qnil;
+}
+
 static VALUE
 rbm2_replication_event_new(rbm2_replication_client_wrapper *wrapper,
                            MARIADB_RPL_EVENT *event)
@@ -1262,10 +1315,6 @@ rbm2_replication_event_new(rbm2_replication_client_wrapper *wrapper,
       struct st_mariadb_rpl_rows_event *e = &(event->event.rows);
       VALUE rb_table_id = ULONG2NUM(e->table_id);
       VALUE rb_table_map = rb_hash_aref(wrapper->rb_table_maps, rb_table_id);
-      const uint8_t *column_bitmap =
-        (const uint8_t *)(e->column_bitmap);
-      const uint8_t *column_update_bitmap =
-        (const uint8_t *)(e->column_update_bitmap);
       rb_iv_set(rb_event, "@table_id", rb_table_id);
       rb_iv_set(rb_event, "@table_map", rb_table_map);
       rb_iv_set(rb_event, "@rows_flags", USHORT2NUM(e->flags));
@@ -1274,24 +1323,15 @@ rbm2_replication_event_new(rbm2_replication_client_wrapper *wrapper,
       if (klass == rb_cMysql2ReplicationUpdateRowsEvent) {
         rb_updated_rows = rb_ary_new();
       }
-      const uint8_t *row_data = e->row_data;
-      const uint8_t *row_data_end = row_data + e->row_data_size;
       if (!RB_NIL_P(rb_table_map)) {
-        VALUE rb_columns = rb_iv_get(rb_table_map, "@columns");
-        while (row_data < row_data_end) {
-          VALUE rb_row = rbm2_row_parse(&row_data,
-                                        e->column_count,
-                                        column_bitmap,
-                                        rb_columns);
-          rb_ary_push(rb_rows, rb_row);
-          if (klass == rb_cMysql2ReplicationUpdateRowsEvent) {
-            VALUE rb_updated_row = rbm2_row_parse(&row_data,
-                                                  e->column_count,
-                                                  column_update_bitmap,
-                                                  rb_columns);
-            rb_ary_push(rb_updated_rows, rb_updated_row);
-          }
-        }
+        rbm2_replication_rows_event_parse_rows_data data;
+        data.rows_event = e;
+        data.rb_klass = klass;
+        data.rb_rows = rb_rows;
+        data.rb_updated_rows = rb_updated_rows;
+        data.rb_table_map = rb_table_map;
+        rb_rescue(rbm2_replication_rows_event_parse_rows_body, (VALUE)&data,
+                  rbm2_replication_rows_event_parse_rows_rescue, (VALUE)&data);
       }
       rb_iv_set(rb_event, "@rows", rb_rows);
       if (klass == rb_cMysql2ReplicationUpdateRowsEvent) {
@@ -1373,9 +1413,13 @@ Init_mysql2_replication(void)
   rb_cDate = rb_const_get(rb_cObject, rb_intern("Date"));
 
   VALUE rb_mMysql2 = rb_const_get(rb_cObject, rb_intern("Mysql2"));
-  rb_cMysql2Error = rb_const_get(rb_mMysql2, rb_intern("Error"));
+  rb_eMysql2Error = rb_const_get(rb_mMysql2, rb_intern("Error"));
 
   VALUE rb_mMysql2Replication = rb_define_module("Mysql2Replication");
+  rb_eMysql2ReplicationError =
+    rb_define_class_under(rb_mMysql2Replication,
+                          "Error",
+                          rb_eStandardError);
 
   rb_cMysql2ReplicationEvent =
     rb_define_class_under(rb_mMysql2Replication, "Event", rb_cObject);
