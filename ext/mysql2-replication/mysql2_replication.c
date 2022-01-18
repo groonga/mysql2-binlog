@@ -544,15 +544,22 @@ rbm2_column_parse(VALUE rb_column, const uint8_t **row_data)
       /* https://mariadb.com/kb/en/rows_event_v1/#mysql_type_datetime */
       uint64_t raw_time = rbm2_read_uint64(*row_data);
       /* YYYYMMDDHHMMSS */
-      rb_value = rb_funcall(rb_cTime,
-                            rb_intern("utc"),
-                            6,
-                            RB_UINT2NUM((raw_time / 10000000000)),
-                            RB_UINT2NUM((raw_time % 10000000000) / 100000000),
-                            RB_UINT2NUM((raw_time %   100000000) /   1000000),
-                            RB_UINT2NUM((raw_time %     1000000) /     10000),
-                            RB_UINT2NUM((raw_time %       10000) /       100),
-                            RB_UINT2NUM((raw_time %         100)));
+      if (raw_time == 0) {
+        rb_value = rb_funcall(rb_cTime,
+                              rb_intern("utc"),
+                              1,
+                              RB_UINT2NUM(0));
+      } else {
+        rb_value = rb_funcall(rb_cTime,
+                              rb_intern("utc"),
+                              6,
+                              RB_UINT2NUM((raw_time / 10000000000)),
+                              RB_UINT2NUM((raw_time % 10000000000) / 100000000),
+                              RB_UINT2NUM((raw_time %   100000000) /   1000000),
+                              RB_UINT2NUM((raw_time %     1000000) /     10000),
+                              RB_UINT2NUM((raw_time %       10000) /       100),
+                              RB_UINT2NUM((raw_time %         100)));
+      }
       (*row_data) += 8;
     }
     break;
