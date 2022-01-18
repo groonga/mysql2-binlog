@@ -440,8 +440,9 @@ rbm2_column_parse_blob(VALUE rb_column,
     break;
   default:
     rb_raise(rb_eNotImpError,
-             "unsupported length size for blob: %u",
-             length_size);
+             "unsupported length size for blob: %u: %+" PRIsVALUE,
+             length_size,
+             rb_column);
     break;
   }
   return rb_value;
@@ -457,8 +458,9 @@ rbm2_column_parse(VALUE rb_column, const uint8_t **row_data)
   switch (type) {
   case MYSQL_TYPE_DECIMAL:
     rb_raise(rb_eNotImpError,
-             "decimal type isn't implemented yet: %+" PRIsVALUE,
-             rb_type);
+             "decimal type isn't implemented yet: %+" PRIsVALUE ": %+" PRIsVALUE,
+             rb_type,
+             rb_column);
     break;
   case MYSQL_TYPE_TINY:
     rb_value = RB_CHR2FIX(*(*row_data));
@@ -551,8 +553,9 @@ rbm2_column_parse(VALUE rb_column, const uint8_t **row_data)
     break;
   case MYSQL_TYPE_NEWDATE:
     rb_raise(rb_eNotImpError,
-             "newdate type isn't implemented yet: %+" PRIsVALUE,
-             rb_type);
+             "newdate type isn't implemented yet: %+" PRIsVALUE ": %+" PRIsVALUE,
+             rb_type,
+             rb_column);
     break;
   case MYSQL_TYPE_VARCHAR:
     rb_value = rbm2_column_parse_variable_length_string(rb_column, row_data);
@@ -581,9 +584,11 @@ rbm2_column_parse(VALUE rb_column, const uint8_t **row_data)
         break;
       default :
         rb_raise(rb_eNotImpError,
-                 "%d bit type isn't implemented yet: %+" PRIsVALUE,
+                 "%d bit type isn't implemented yet: %+" PRIsVALUE
+                 ": %+" PRIsVALUE,
                  bits,
-                 rb_type);
+                 rb_type,
+                 rb_column);
         break;
       }
     }
@@ -677,8 +682,9 @@ rbm2_column_parse(VALUE rb_column, const uint8_t **row_data)
     break;
   case MYSQL_TYPE_TIME2:
     rb_raise(rb_eNotImpError,
-             "time2 type isn't implemented yet: %+" PRIsVALUE,
-             rb_type);
+             "time2 type isn't implemented yet: %+" PRIsVALUE ": %+" PRIsVALUE,
+             rb_type,
+             rb_column);
     break;
   case MYSQL_TYPE_JSON:
     rb_value = rbm2_column_parse_blob(rb_column, row_data);
@@ -720,8 +726,9 @@ rbm2_column_parse(VALUE rb_column, const uint8_t **row_data)
   case MYSQL_TYPE_MEDIUM_BLOB:
   case MYSQL_TYPE_LONG_BLOB:
     rb_raise(rb_eNotImpError,
-             "blob types aren't implemented yet: %+" PRIsVALUE,
-             rb_type);
+             "blob types aren't implemented yet: %+" PRIsVALUE ": %+" PRIsVALUE,
+             rb_type,
+             rb_column);
     break;
   case MYSQL_TYPE_BLOB:
     rb_value = rbm2_column_parse_blob(rb_column, row_data);
@@ -734,13 +741,17 @@ rbm2_column_parse(VALUE rb_column, const uint8_t **row_data)
     break;
   case MYSQL_TYPE_GEOMETRY:
     rb_raise(rb_eNotImpError,
-             "geometry type isn't implemented yet: %+" PRIsVALUE,
-             rb_type);
+             "geometry type isn't implemented yet: %+" PRIsVALUE
+             ": %+" PRIsVALUE,
+             rb_type,
+             rb_column);
     break;
   default:
     rb_raise(rb_eNotImpError,
-             "unknown type isn't implemented yet: %+" PRIsVALUE,
-             rb_type);
+             "unknown type isn't implemented yet: %+" PRIsVALUE
+             ": %+" PRIsVALUE,
+             rb_type,
+             rb_column);
     break;
   }
   return rb_value;
